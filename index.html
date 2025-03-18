@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,107 +12,220 @@
             margin: 0;
             padding: 20px;
         }
+
         .container {
             max-width: 600px;
             margin: auto;
             background: white;
             padding: 20px;
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
+
         h1 {
             text-align: center;
         }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            font-size: 16px;
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
         }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            font-size: 16px;
+            background-color: white;
+        }
+
         button {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: none;
             background-color: #007aff;
             color: white;
             font-size: 16px;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
         }
+
         button:hover {
             background-color: #005ecb;
         }
+
         .conference-card {
             background: white;
             margin: 20px 0;
             padding: 15px;
             border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
+
         .countdown {
             font-size: 14px;
-            color: #888;
+            color: #555;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .favorite {
+            color: #ffcc00;
+            cursor: pointer;
+        }
+
+        .export-import {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 15px;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>Conference Tracker</h1>
-        <input type="text" id="url" placeholder="Paste conference URL...">
+        <div class="input-group">
+            <label for="url">Conference URL</label>
+            <input type="text" id="url" placeholder="Paste conference URL...">
+            <label for="deadline">Call for Papers Deadline</label>
+            <input type="date" id="deadline">
+        </div>
         <button onclick="addConference()">Add Conference</button>
+        <div class="export-import">
+            <button onclick="exportData()">Export All</button>
+            <button onclick="document.getElementById('importFile').click()">Import</button>
+            <input type="file" id="importFile" style="display: none;" accept="application/json"
+                onchange="importData(event)">
+        </div>
         <div id="conferences"></div>
     </div>
     <script>
-        function addConference() {
+        const proxyUrl = "https://api.allorigins.win/get?url=";
+
+        async function getTitle(url) {
+            try {
+                const response = await fetch(`${proxyUrl}${encodeURIComponent(url)}`);
+                const data = await response.json();
+                const doc = new DOMParser().parseFromString(data.contents, "text/html");
+                return doc.querySelector("title")?.innerText.trim() || "Unknown Conference";
+            } catch (error) {
+                console.error("Failed to fetch conference title:", error);
+                return url;
+            }
+        }
+
+        async function addConference() {
             const url = document.getElementById("url").value.trim();
-            if (!url) return;
-            
-            fetchConferenceData(url).then(conf => {
-                saveConference(conf);
-                renderConferences();
-            });
-            
-            document.getElementById("url").value = "";
-        }
-        
-        function fetchConferenceData(url) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    resolve({
-                        name: "Sample Conference",
-                        deadline: new Date(Date.now() + Math.random() * 1e10).toISOString(),
-                        url
-                    });
-                }, 1000);
-            });
-        }
-        
-        function saveConference(conf) {
+            const deadline = document.getElementById("deadline").value.trim();
+            if (!url || !deadline) {
+                alert("Please enter both a URL and a deadline.");
+                return;
+            }
+
+            const name = await getTitle(url);
+            const conf = { name, deadline, url, favorite: false };
             let conferences = JSON.parse(localStorage.getItem("conferences")) || [];
+            if (!Array.isArray(conferences)) conferences = [];
+
             conferences.push(conf);
             localStorage.setItem("conferences", JSON.stringify(conferences));
+            renderConferences();
         }
-        
+
+        function deleteConference(index) {
+            let conferences = JSON.parse(localStorage.getItem("conferences")) || [];
+            conferences.splice(index, 1);
+            localStorage.setItem("conferences", JSON.stringify(conferences));
+            renderConferences();
+        }
+
+        function toggleFavorite(index) {
+            let conferences = JSON.parse(localStorage.getItem("conferences")) || [];
+            conferences[index].favorite = !conferences[index].favorite;
+            localStorage.setItem("conferences", JSON.stringify(conferences));
+            renderConferences();
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(localStorage.getItem("conferences"));
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "conferences.json";
+            link.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    let importedData = JSON.parse(e.target.result);
+
+                    // Check if it's double-stringified and parse again
+                    if (typeof importedData === "string") {
+                        importedData = JSON.parse(importedData);
+                    }
+
+                    // Ensure the imported data is an array of objects with required fields
+                    if (!Array.isArray(importedData) || !importedData.every(conf =>
+                        conf.hasOwnProperty("name") &&
+                        conf.hasOwnProperty("deadline") &&
+                        conf.hasOwnProperty("url") &&
+                        conf.hasOwnProperty("favorite"))) {
+                        throw new Error("Invalid structure");
+                    }
+
+                    localStorage.setItem("conferences", JSON.stringify(importedData));
+                    renderConferences();
+                    alert("Import successful!");
+                } catch (error) {
+                    alert("Invalid file format. Please upload a valid JSON file containing an array of conferences.");
+                    console.error("Import error:", error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
         function renderConferences() {
             const container = document.getElementById("conferences");
             container.innerHTML = "";
             const conferences = JSON.parse(localStorage.getItem("conferences")) || [];
             conferences.forEach((conf, index) => {
-                const timeLeft = Math.max(0, new Date(conf.deadline) - new Date());
-                const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
                 container.innerHTML += `
                     <div class="conference-card">
                         <h3>${conf.name}</h3>
-                        <p class="countdown">Call for Papers Deadline: ${new Date(conf.deadline).toLocaleDateString()}</p>
-                        <p>${daysLeft} days remaining</p>
+                        <p class="countdown">CFP Deadline: ${new Date(conf.deadline).toLocaleDateString()}</p>
                         <a href="${conf.url}" target="_blank">Visit Conference</a>
+                        <div class="actions">
+                            <button onclick="deleteConference(${index})">Delete</button>
+                            <span class="favorite" onclick="toggleFavorite(${index})">${conf.favorite ? "★" : "☆"}</span>
+                        </div>
                     </div>`;
             });
         }
-        
+
         document.addEventListener("DOMContentLoaded", renderConferences);
     </script>
 </body>
+
 </html>
