@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conference Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", sans-serif;
+            background-color: #f5f5f7;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            background-color: #007aff;
+            color: white;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005ecb;
+        }
+        .conference-card {
+            background: white;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .countdown {
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conference Tracker</h1>
+        <input type="text" id="url" placeholder="Paste conference URL...">
+        <button onclick="addConference()">Add Conference</button>
+        <div id="conferences"></div>
+    </div>
+    <script>
+        function addConference() {
+            const url = document.getElementById("url").value.trim();
+            if (!url) return;
+            
+            fetchConferenceData(url).then(conf => {
+                saveConference(conf);
+                renderConferences();
+            });
+            
+            document.getElementById("url").value = "";
+        }
+        
+        function fetchConferenceData(url) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve({
+                        name: "Sample Conference",
+                        deadline: new Date(Date.now() + Math.random() * 1e10).toISOString(),
+                        url
+                    });
+                }, 1000);
+            });
+        }
+        
+        function saveConference(conf) {
+            let conferences = JSON.parse(localStorage.getItem("conferences")) || [];
+            conferences.push(conf);
+            localStorage.setItem("conferences", JSON.stringify(conferences));
+        }
+        
+        function renderConferences() {
+            const container = document.getElementById("conferences");
+            container.innerHTML = "";
+            const conferences = JSON.parse(localStorage.getItem("conferences")) || [];
+            conferences.forEach((conf, index) => {
+                const timeLeft = Math.max(0, new Date(conf.deadline) - new Date());
+                const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                container.innerHTML += `
+                    <div class="conference-card">
+                        <h3>${conf.name}</h3>
+                        <p class="countdown">Call for Papers Deadline: ${new Date(conf.deadline).toLocaleDateString()}</p>
+                        <p>${daysLeft} days remaining</p>
+                        <a href="${conf.url}" target="_blank">Visit Conference</a>
+                    </div>`;
+            });
+        }
+        
+        document.addEventListener("DOMContentLoaded", renderConferences);
+    </script>
+</body>
+</html>
